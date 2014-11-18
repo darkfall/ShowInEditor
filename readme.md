@@ -58,6 +58,14 @@ __Attribute Options__
     When the member is an array, compress the array layout into a horizontal group to save space. Only supports primitive types.
     
  
+* IsButton
+    
+    When the member is a method, making a button in the inspector instead of showing the result of the method call
+    
+* ButtonGroup
+
+    When the member is a method and its a button, group the button horizontally by the group index. Default is -1 means no group at all.
+ 
 __Nested Object__
 
 If you want custom structs/classes/components also showing in the inspector, the type of the object must also be decorated by the [ShowInEditor] attribute. For example:
