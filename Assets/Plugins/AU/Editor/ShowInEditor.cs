@@ -1,8 +1,8 @@
 ﻿//
-// [ShowInEditor]
+// [ShowInEditor v0.1]
 // Developed as part of Project Ambiguous Utopia
 // By Darkfall (http://darkfall.me)
-// Licemse: MIT
+// License: MIT
 //
 
 using UnityEngine;
@@ -147,75 +147,36 @@ namespace AU
 
             public string NamePrefix = "";
 
-            public ShowInEditor Attribute
-            {
-                get { return _attribute; }
-            }
+            public ShowInEditor Attribute { get { return _attribute; } }
 
-            public SerializedPropertyType Type
-            {
-                get { return _type; }
-            }
+            public SerializedPropertyType Type { get { return _type; } }
 
-            public ShowInEditorFlags Flags
-            {
-                get { return _attribute.Flags; }
-            }
+            public ShowInEditorFlags Flags { get { return _attribute.Flags; } }
 
-            public string Comment
-            {
-                get { return _attribute.Comment; }
-            }
+            public string Comment { get { return _attribute.Comment; } }
 
-            public bool CanModifyArrayLength
-            {
-                get { return _attribute.CanModifyArrayLength; }
-            }
+            public bool CanModifyArrayLength { get { return _attribute.CanModifyArrayLength; } }
 
-            public bool CompressArrayLayout
-            {
-                get { return _attribute.CompressArrayLayout; }
-            }
+            public bool CompressArrayLayout { get { return _attribute.CompressArrayLayout; } }
 
-            public Color Color
-            {
-                get { return _attribute.UnityColor; }
-            }
+            public Color Color { get { return _attribute.UnityColor; } }
 
-            public Color CommentColor
-            {
-                get { return _attribute.UnityCommentColor; }
-            }
+            public Color CommentColor { get { return _attribute.UnityCommentColor; } }
+
+            public bool IsDefaultColor { get { return _attribute.FieldColor == ShowInEditorColor.Default; } }
+
+            public bool IsButton { get { return _attribute.IsButton; } }
+
+            public bool IsDefaultCommentColor { get { return _attribute.CommentColor == ShowInEditorColor.Default; } }
+
+            public int ButtonGroup { get { return _attribute.ButtonGroup; } }
+
+            public UnityEditor.MessageType CommentMessageType { get { return (UnityEditor.MessageType)_attribute.CommentType; } }
 
             public int IndentLevel
             {
                 get { return _attribute.IndentLevel; }
                 set { _attribute.IndentLevel = value; }
-            }
-
-            public bool IsDefaultColor
-            {
-                get { return _attribute.FieldColor == ShowInEditorColor.Default; }
-            }
-
-            public bool IsButton
-            {
-                get { return _attribute.IsButton; }
-            }
-
-            public bool IsDefaultCommentColor
-            {
-                get { return _attribute.CommentColor == ShowInEditorColor.Default; }
-            }
-
-            public int ButtonGroup
-            {
-                get { return _attribute.ButtonGroup; }
-            }
-
-            public UnityEditor.MessageType CommentMessageType
-            {
-                get { return (UnityEditor.MessageType)_attribute.CommentType; }
             }
 
             public void Rebind(System.Object obj)
