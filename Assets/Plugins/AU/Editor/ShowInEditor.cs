@@ -231,24 +231,24 @@ namespace AU
                    { typeof(Gradient),      SerializedPropertyType.Gradient },
                 };
 
-            public static bool GetSerializedTypeFromType(System.Type type, out SerializedPropertyType propertyType)
+            public static bool GetSerializedTypeFromType(System.Type type, out SerializedPropertyType serializedType)
             {
-                propertyType = SerializedPropertyType.Generic;
+                serializedType = SerializedPropertyType.Generic;
                 if (type.IsEnum)
                 {
-                    propertyType = SerializedPropertyType.Enum;
+                    serializedType = SerializedPropertyType.Enum;
                     return true;
                 }
                 if (type.IsSubclassOf(typeof(UnityEngine.Object)))
                 {
-                    propertyType = SerializedPropertyType.ObjectReference;
+                    serializedType = SerializedPropertyType.ObjectReference;
                     return true;
                 }
                 if (type.IsArray)
                 {
-                    return GetSerializedTypeFromType(type.GetElementType(), out propertyType);
+                    return GetSerializedTypeFromType(type.GetElementType(), out serializedType);
                 }
-                return _typemap.TryGetValue(type, out propertyType);
+                return _typemap.TryGetValue(type, out serializedType);
             }
 
         }
@@ -365,7 +365,7 @@ namespace AU
 
         public class ArrayFieldField : FieldField
         {
-            public bool editor_shownContent = true;
+            public bool editor_showContent = true;
 
 
             public int Length
@@ -484,46 +484,26 @@ namespace AU
             }
         }
 
-        public class ArrayObjectReferenceField : ObjectReferenceField
+        public class ArrayObjectReferenceField : ArrayFieldField
         {
-
-            public int Length
+            protected MemberField[] _members;
+            public MemberField[] Members
             {
-                get
-                {
-                    IList arr = (IList)this.GetValue();
-                    if (arr != null)
-                        return arr.Count;
-                    return 0;
-                }
-                set
-                {
-                    IList oldArr = (IList)this.GetValue();
-                    if (value != oldArr.Count)
-                    {
-                        IList newArr = (IList)System.Activator.CreateInstance(_info.FieldType, value);
-                        for (int i = 0; i < (int)Mathf.Min(oldArr.Count, newArr.Count); ++i)
-                            newArr[i] = oldArr[i];
-                        this.SetValue(newArr);
-                    }
-                }
+                get { return _members; }
             }
 
             public ArrayObjectReferenceField(System.Object instance, ShowInEditor attribute, SerializedPropertyType type, FieldInfo info, MemberField[] members)
-                : base(instance, attribute, type, info, members)
+                : base(instance, attribute, type, info)
             {
-
+                _members = members;
             }
 
-
-            public override System.Type GetFieldType()
+            public void BindRefernecedObject(System.Object obj)
             {
-                return _info.FieldType.GetElementType();
-            }
-
-            public new static bool GetSerializedType(FieldInfo info, out SerializedPropertyType propertyType)
-            {
-                return GetSerializedTypeFromType(info.FieldType.GetElementType(), out propertyType);
+                foreach (MemberField mf in _members)
+                {
+                    mf.Rebind(obj);
+                }
             }
         }
 
@@ -654,9 +634,9 @@ namespace AU
         {
             IList arr = (IList)field.GetValue();
 
-            field.editor_shownContent = EditorGUILayout.Foldout(field.editor_shownContent, field.GetName() + System.String.Format(": ({0} Elements)", arr != null ? arr.Count : 0));
+            field.editor_showContent = EditorGUILayout.Foldout(field.editor_showContent, field.GetName() + System.String.Format(": ({0} Elements)", arr != null ? arr.Count : 0));
 
-            if (field.editor_shownContent)
+            if (field.editor_showContent)
             {
                 EditorGUI.indentLevel = 1 + field.IndentLevel;
 
@@ -759,6 +739,28 @@ namespace AU
             EditorGUILayout.EndHorizontal();
         }
 
+        public static void DrawObjectReference(System.Object obj, MemberField[] fields, Color defaultColor)
+        {
+            if (obj != null)
+            {
+                string namePrefix = "";
+                if (obj is UnityEngine.Component)
+                    namePrefix = (obj as UnityEngine.Component).gameObject.name + ".";
+                else if (obj is UnityEngine.GameObject)
+                    namePrefix = (obj as UnityEngine.GameObject).name + ".";
+
+                foreach (MemberField memberField in fields)
+                {
+                    memberField.NamePrefix = namePrefix;
+                    DrawField(memberField, defaultColor);
+                }
+            }
+            else
+            {
+                EditorGUILayout.LabelField("(null)");
+            }
+        }
+
         public static void DrawObjectReferenceField(ObjectReferenceField field, Color defaultColor)
         {
             System.Object obj = field.GetValue();
@@ -768,26 +770,8 @@ namespace AU
 
             if (field.editor_showContent)
             {
-                if (obj != null)
-                {
-                    string namePrefix = "";
-                    if (obj is UnityEngine.Component)
-                        namePrefix = (obj as UnityEngine.Component).gameObject.name + ".";
-                    else if (obj is UnityEngine.GameObject)
-                        namePrefix = (obj as UnityEngine.GameObject).name + ".";
-
-                    field.BindRefernecedObject(obj);
-
-                    foreach (MemberField memberField in field.Members)
-                    {
-                        memberField.NamePrefix = namePrefix;
-                        DrawField(memberField, defaultColor);
-                    }
-                }
-                else
-                {
-                    EditorGUILayout.LabelField("(null)");
-                }
+                field.BindRefernecedObject(obj);
+                DrawObjectReference(obj, field.Members, defaultColor);
             }
         }
 
@@ -806,20 +790,8 @@ namespace AU
                 {
                     for (int i = 0; i < arr.Count; ++i)
                     {
-                        System.Object obj = arr[i];
-                        string namePrefix = "";
-                        if (obj is UnityEngine.Component)
-                            namePrefix = (obj as UnityEngine.Component).gameObject.name + ".";
-                        else if (obj is UnityEngine.GameObject)
-                            namePrefix = (obj as UnityEngine.GameObject).name + ".";
-
-                        field.BindRefernecedObject(obj);
-
-                        foreach (MemberField memberField in field.Members)
-                        {
-                            memberField.NamePrefix = namePrefix;
-                            DrawField(memberField, defaultColor);
-                        }
+                        field.BindRefernecedObject(arr[i]);
+                        DrawObjectReference(arr[i], field.Members, defaultColor);
                     }
                 }
                 else
@@ -849,17 +821,17 @@ namespace AU
             else
                 GUI.color = field.Color;
 
-            if (field is ArrayFieldField)
+            if (field is ArrayObjectReferenceField)
+            {
+                DrawArrayObjectReferenceField((ArrayObjectReferenceField)field, defaultColor);
+            }
+            else if (field is ArrayFieldField)
             {
                 DrawArrayField((ArrayFieldField)field);
             }
             else if (field is MethodField)
             {
                 DrawMethodField((MethodField)field);
-            }
-            else if (field is ArrayObjectReferenceField)
-            {
-                DrawArrayObjectReferenceField((ArrayObjectReferenceField)field, defaultColor);
             }
             else if (field is ObjectReferenceField)
             {
@@ -943,17 +915,15 @@ namespace AU
                         if (isObjectRef)
                         {
                             MemberField[] memberFields = GetFieldsFromType(realType, null, level + 1);
-                            ObjectReferenceField objectRefField;
 
                             if (!field.FieldType.IsArray)
                             {
-                                objectRefField = new ObjectReferenceField(obj, attribute, SerializedPropertyType.ObjectReference, field, memberFields);
+                                fields.Add(new ObjectReferenceField(obj, attribute, SerializedPropertyType.ObjectReference, field, memberFields) );
                             }
                             else
                             {
-                                objectRefField = new ArrayObjectReferenceField(obj, attribute, SerializedPropertyType.ObjectReference, field, memberFields);
+                                fields.Add(new ArrayObjectReferenceField(obj, attribute, SerializedPropertyType.ObjectReference, field, memberFields));
                             }
-                            fields.Add(objectRefField);
                         }
                         else
                         {
