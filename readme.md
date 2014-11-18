@@ -61,7 +61,7 @@ __Nested Object__
 If you want nested object (such as a custom struct) also showing in the inspector, the type of the object must also be decorated by the [ShowInEditor] attribute. For example:
 
         [ShowInEditor]
-        class SimpleStruct
+        class SimpleClass
         {
             [ShowInEditor(Comment = "By default, only public members are modifiable")]
             public int i = 42;
