@@ -58,7 +58,7 @@ __Attribute Options__
  
 __Nested Object__
 
-If you want nested object (such as a custom struct) also showing in the inspector, the type of the object must also be decorated by the [ShowInEditor] attribute. For example:
+If you want custom structs/classes/components also showing in the inspector, the type of the object must also be decorated by the [ShowInEditor] attribute. For example:
 
         [ShowInEditor]
         class SimpleClass
