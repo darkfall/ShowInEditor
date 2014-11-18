@@ -1,4 +1,11 @@
-﻿using UnityEngine;
+﻿//
+// [ShowInEditor]
+// Developed as part of Project Ambiguous Utopia
+// By Darkfall (http://darkfall.me)
+// Licemse: MIT
+//
+
+using UnityEngine;
 using UnityEditor;
 using System.Collections;
 using System.Reflection;
