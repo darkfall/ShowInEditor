@@ -6,6 +6,8 @@ Adding support for showing public & non-public properties, fields, methods and s
 
 Support nested objects.
 
+License: MIT
+
 ![](https://github.com/darkfall/ShowInEditor/blob/master/demo.jpg)
 
 __How to__
