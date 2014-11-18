@@ -52,8 +52,7 @@ public class ShowInEditorTest : MonoBehaviour {
     }
 
     #endregion
-
-
+    
     [ShowInEditor(Comment = "This is a method, and it will be readonly", CommentColor = ShowInEditorColor.Magenta)]
     public override string ToString()
     {
@@ -64,6 +63,24 @@ public class ShowInEditorTest : MonoBehaviour {
     public void TestButton()
     {
         Debug.Log("Hello World");
+    }
+
+    [ShowInEditor(Comment = "this is a button group", IsButton = true, ButtonGroup = 1)]
+    public void TestButton1()
+    {
+        Debug.Log("Hello World 1");
+    }
+
+    [ShowInEditor(IsButton = true, ButtonGroup = 1)]
+    public void TestButton2()
+    {
+        Debug.Log("Hello World 2");
+    }
+
+    [ShowInEditor(IsButton = true, ButtonGroup = 1)]
+    public void TestButton3()
+    {
+        Debug.Log("Hello World 3");
     }
 
     public void Start()

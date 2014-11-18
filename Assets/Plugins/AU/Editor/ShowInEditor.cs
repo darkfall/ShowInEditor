@@ -90,6 +90,11 @@ namespace AU
          * and the method will be invoked when the button is clicked
          */
         public bool IsButton = false;
+        /**
+         * When its a button, optionally group the button using the grouping index
+         * Default is -1 means no group (vertical aligned)
+         */
+        public int ButtonGroup = -1;
 
         public ShowInEditorMessageType CommentType = ShowInEditorMessageType.None;
 
@@ -141,6 +146,11 @@ namespace AU
             protected SerializedPropertyType _type;
 
             public string NamePrefix = "";
+
+            public ShowInEditor Attribute
+            {
+                get { return _attribute; }
+            }
 
             public SerializedPropertyType Type
             {
@@ -196,6 +206,11 @@ namespace AU
             public bool IsDefaultCommentColor
             {
                 get { return _attribute.CommentColor == ShowInEditorColor.Default; }
+            }
+
+            public int ButtonGroup
+            {
+                get { return _attribute.ButtonGroup; }
             }
 
             public UnityEditor.MessageType CommentMessageType
@@ -478,6 +493,23 @@ namespace AU
             public static bool GetSerializedType(MethodInfo info, out SerializedPropertyType propertyType)
             {
                 return GetSerializedTypeFromType(info.ReturnType, out propertyType);
+            }
+        }
+
+        public class ButtonGroupField : MethodField
+        {
+            protected MethodField[] _buttons;
+
+            public MethodField[] Buttons
+            {
+                get { return _buttons; }
+            }
+
+            public ButtonGroupField(MethodField[] buttons)
+                : base(null, null, SerializedPropertyType.Generic, null)
+            {
+                _buttons = buttons;
+                _attribute = _buttons[0].Attribute;
             }
         }
 
@@ -836,6 +868,19 @@ namespace AU
 
         }
 
+        public static void DrawButtonGroup(ButtonGroupField field)
+        {
+            GUILayout.BeginHorizontal();
+            foreach (MethodField button in field.Buttons)
+            {
+                if (GUILayout.Button(button.GetName()))
+                {
+                    button.Invoke();
+                }
+            }
+            GUILayout.EndHorizontal();
+        }
+
         public static void DrawField(MemberField field, Color defaultColor)
         {
             EditorGUI.indentLevel = field.IndentLevel;
@@ -861,6 +906,10 @@ namespace AU
             else if (field is ArrayFieldField)
             {
                 DrawArrayField((ArrayFieldField)field);
+            }
+            else if(field is ButtonGroupField)
+            {
+                DrawButtonGroup((ButtonGroupField)field);
             }
             else if (field is MethodField)
             {
@@ -895,6 +944,7 @@ namespace AU
         public static MemberField[] GetFieldsFromType(System.Type type, System.Object obj, int level = 0)
         {
             List<MemberField> fields = new List<MemberField>();
+            Dictionary<int, List<MethodField>> buttonFields = new Dictionary<int, List<MethodField>>();
 
             BindingFlags bindingFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static;
 
@@ -984,9 +1034,26 @@ namespace AU
 
                         if (method.GetParameters().Length == 0)
                         {
-                            if (method.ReturnType != typeof(void) || attribute.IsButton)
+                            if (method.ReturnType != typeof(void))
                             {
                                 fields.Add(new MethodField(obj, attribute, SerializedPropertyType.Generic, method));
+                            }
+                            else if (attribute.IsButton)
+                            {
+                                if (attribute.ButtonGroup == -1)
+                                {
+                                    fields.Add(new MethodField(obj, attribute, SerializedPropertyType.Generic, method));
+                                }
+                                else
+                                {
+                                    List<MethodField> group;
+                                    if (!buttonFields.TryGetValue(attribute.ButtonGroup, out group))
+                                    {
+                                        group = new List<MethodField>();
+                                        buttonFields.Add(attribute.ButtonGroup, group);
+                                    }
+                                    group.Add(new MethodField(obj, attribute, SerializedPropertyType.Generic, method));
+                                }
                             }
                             else
                                 Debug.LogError("[ShowInEditor] Method that returns nothing cannot be shown in the editor");
@@ -999,6 +1066,10 @@ namespace AU
                 }
             }
 
+            foreach (List<MethodField> buttonGroup in buttonFields.Values)
+            {
+                fields.Add(new ButtonGroupField(buttonGroup.ToArray()));
+            }
             return fields.ToArray();
         }
 
