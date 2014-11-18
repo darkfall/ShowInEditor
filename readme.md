@@ -6,6 +6,8 @@ Adding support for showing public & non-public properties, fields, methods and s
 
 Support nested objects.
 
+![](https://github.com/darkfall/ShowInEditor/blob/master/demo.jpg)
+
 __How to__
 
 * Add [ShowInEditor] attribute to the members you want to show in the inspector. For example:
