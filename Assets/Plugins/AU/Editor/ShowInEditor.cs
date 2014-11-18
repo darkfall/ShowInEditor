@@ -89,7 +89,7 @@ namespace AU
          * When decorating a method, optionally making a button in the inspector
          * and the method will be invoked when the button is clicked
          */
-        public bool isButton = false;
+        public bool IsButton = false;
 
         public ShowInEditorMessageType CommentType = ShowInEditorMessageType.None;
 
@@ -190,7 +190,7 @@ namespace AU
 
             public bool IsButton
             {
-                get { return _attribute.isButton;  }
+                get { return _attribute.IsButton; }
             }
 
             public bool IsDefaultCommentColor
@@ -984,7 +984,7 @@ namespace AU
 
                         if (method.GetParameters().Length == 0)
                         {
-                            if (method.ReturnType != typeof(void) || attribute.isButton)
+                            if (method.ReturnType != typeof(void) || attribute.IsButton)
                             {
                                 fields.Add(new MethodField(obj, attribute, SerializedPropertyType.Generic, method));
                             }
