@@ -60,6 +60,11 @@ public class ShowInEditorTest : MonoBehaviour {
         return base.ToString();
     }
 
+    [ShowInEditor(Comment = "this is method call button", isButton = true)]
+    public void TestButton()
+    {
+        Debug.Log("Hello World");
+    }
 
     public void Start()
     {

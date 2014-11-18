@@ -85,6 +85,12 @@ namespace AU
          */
         public bool CompressArrayLayout = false;
 
+        /**
+         * When decorating a method, optionally making a button in the inspector
+         * and the method will be invoked when the button is clicked
+         */
+        public bool isButton = false;
+
         public ShowInEditorMessageType CommentType = ShowInEditorMessageType.None;
 
         public static Color[] EditorColors = {
@@ -180,6 +186,11 @@ namespace AU
             public bool IsDefaultColor
             {
                 get { return _attribute.FieldColor == ShowInEditorColor.Default; }
+            }
+
+            public bool IsButton
+            {
+                get { return _attribute.isButton;  }
             }
 
             public bool IsDefaultCommentColor
@@ -427,6 +438,11 @@ namespace AU
                 : base(instance, attribute, type)
             {
                 _info = info;
+            }
+
+            public void Invoke()
+            {
+                _info.Invoke(_obj, new object[0] { });
             }
 
             public override System.Object GetValue()
@@ -699,30 +715,40 @@ namespace AU
 
         public static void DrawMethodField(MethodField field)
         {
-            object v = field.GetValue();
-
-            if (v != null)
+            if (!field.IsButton)
             {
-                if (v.GetType().IsArray)
+                object v = field.GetValue();
+
+                if (v != null)
                 {
-                    IList arr = (IList)v;
-
-                    EditorGUILayout.LabelField(field.GetName() + System.String.Format(": ({0} Elements)", arr.Count));
-
-                    EditorGUI.indentLevel = 1 + field.IndentLevel;
-                    for (int i = 0; i < arr.Count; ++i)
+                    if (v.GetType().IsArray)
                     {
-                        EditorGUILayout.LabelField(string.Format("[{0}]", i), arr[i].ToString());
+                        IList arr = (IList)v;
+
+                        EditorGUILayout.LabelField(field.GetName() + System.String.Format(": ({0} Elements)", arr.Count));
+
+                        EditorGUI.indentLevel = 1 + field.IndentLevel;
+                        for (int i = 0; i < arr.Count; ++i)
+                        {
+                            EditorGUILayout.LabelField(string.Format("[{0}]", i), arr[i].ToString());
+                        }
+                    }
+                    else
+                    {
+                        EditorGUILayout.LabelField(field.GetName(), v.ToString());
                     }
                 }
                 else
                 {
-                    EditorGUILayout.LabelField(field.GetName(), v.ToString());
+                    EditorGUILayout.LabelField(field.GetName(), "null");
                 }
             }
             else
             {
-                EditorGUILayout.LabelField(field.GetName(), "null");
+                if (GUILayout.Button(field.GetName()))
+                {
+                    field.Invoke();
+                }
             }
         }
 
@@ -958,7 +984,7 @@ namespace AU
 
                         if (method.GetParameters().Length == 0)
                         {
-                            if (method.ReturnType != typeof(void))
+                            if (method.ReturnType != typeof(void) || attribute.isButton)
                             {
                                 fields.Add(new MethodField(obj, attribute, SerializedPropertyType.Generic, method));
                             }
