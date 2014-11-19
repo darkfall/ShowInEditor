@@ -57,14 +57,17 @@ __Attribute Options__
 
     When the member is an array, compress the array layout into a horizontal group to save space. Only supports primitive types.
     
- 
-* IsButton
+* Style (ShowInEditorStyle)
     
-    When the member is a method, making a button in the inspector instead of showing the result of the method call
+    Default, Button, Slider
     
-* ButtonGroup
+* Group
 
     When the member is a method and its a button, group the button horizontally by the group index. Default is -1 means no group at all.
+    
+* RangeMin/RangeMax
+
+    Range of int / float values, also serves as range min / max when the style is slider
  
 __Nested Object__
 
