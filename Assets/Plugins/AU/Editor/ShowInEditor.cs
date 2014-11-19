@@ -201,7 +201,7 @@ namespace AU
             {
                 get
                 {
-                    if (_attribute.Range == null)
+                    if (_attribute.Range == null && _attribute.RangeMin != _attribute.RangeMax)
                         _attribute.Range = new ShowInEditorRange(_attribute.RangeMin, _attribute.RangeMax);
                     return _attribute.Range;
                 }
