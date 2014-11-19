@@ -4,7 +4,7 @@ using System.Collections;
 [AU.ShowInEditor]
 public class SampleComponent : MonoBehaviour {
 
-    [AU.ShowInEditor(CompressArrayLayout = true)]
+    [AU.ShowInEditor(CompactArrayLayout = true)]
     public bool[] measures = new bool[8];
 
 

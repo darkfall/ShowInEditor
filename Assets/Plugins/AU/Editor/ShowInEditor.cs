@@ -42,9 +42,30 @@ namespace AU
         Yellow,
     }
 
+    public enum ShowInEditorStyle
+    {
+        Default,
+        // button only available for methods
+        Button,
+        // slider only available for int / floats
+        Slider,
+    }
+
+
     /**
      * 
      */
+    public class ShowInEditorRange
+    {
+        public float Min;
+        public float Max;
+
+        public ShowInEditorRange(float min, float max)
+        {
+            Min = min;
+            Max = max;
+        }
+    }
 
     [System.AttributeUsage(System.AttributeTargets.Property |
                            System.AttributeTargets.Field |
@@ -83,18 +104,29 @@ namespace AU
          *      [2] ...
          * 
          */
-        public bool CompressArrayLayout = false;
+        public bool CompactArrayLayout = false;
 
         /**
          * When decorating a method, optionally making a button in the inspector
          * and the method will be invoked when the button is clicked
          */
-        public bool IsButton = false;
+        public ShowInEditorStyle Style = ShowInEditorStyle.Default;
+
+        /**
+         * When the field is int / float
+         * Optionally making clamping the value within range
+         * When the style is slider, the GUI control will be a slider
+         * **/
+        public float RangeMin = 0;
+        public float RangeMax = 0;
+
+        public ShowInEditorRange Range;
+
         /**
          * When its a button, optionally group the button using the grouping index
          * Default is -1 means no group (vertical aligned)
          */
-        public int ButtonGroup = -1;
+        public int Group = -1;
 
         public ShowInEditorMessageType CommentType = ShowInEditorMessageType.None;
 
@@ -129,12 +161,6 @@ namespace AU
             }
         }
 
-        public ShowInEditor(ShowInEditorFlags f = ShowInEditorFlags.Default)
-        {
-            Flags = f;
-        }
-
-
     }
 
     public static class EditorHelper
@@ -153,11 +179,13 @@ namespace AU
 
             public ShowInEditorFlags Flags { get { return _attribute.Flags; } }
 
+            public ShowInEditorStyle Style { get { return _attribute.Style; } }
+
             public string Comment { get { return _attribute.Comment; } }
 
             public bool CanModifyArrayLength { get { return _attribute.CanModifyArrayLength; } }
 
-            public bool CompressArrayLayout { get { return _attribute.CompressArrayLayout; } }
+            public bool CompactArrayLayout { get { return _attribute.CompactArrayLayout; } }
 
             public Color Color { get { return _attribute.UnityColor; } }
 
@@ -165,11 +193,19 @@ namespace AU
 
             public bool IsDefaultColor { get { return _attribute.FieldColor == ShowInEditorColor.Default; } }
 
-            public bool IsButton { get { return _attribute.IsButton; } }
-
             public bool IsDefaultCommentColor { get { return _attribute.CommentColor == ShowInEditorColor.Default; } }
 
-            public int ButtonGroup { get { return _attribute.ButtonGroup; } }
+            public int Group { get { return _attribute.Group; } }
+
+            public ShowInEditorRange ValueRange
+            {
+                get
+                {
+                    if (_attribute.Range == null)
+                        _attribute.Range = new ShowInEditorRange(_attribute.RangeMin, _attribute.RangeMax);
+                    return _attribute.Range;
+                }
+            }
 
             public UnityEditor.MessageType CommentMessageType { get { return (UnityEditor.MessageType)_attribute.CommentType; } }
 
@@ -244,7 +280,6 @@ namespace AU
                 }
                 return _typemap.TryGetValue(type, out serializedType);
             }
-
         }
 
         public class PropertyField : MemberField
@@ -503,6 +538,7 @@ namespace AU
         public class ArrayObjectReferenceField : ArrayFieldField
         {
             protected MemberField[] _members;
+
             public MemberField[] Members
             {
                 get { return _members; }
@@ -523,29 +559,61 @@ namespace AU
             }
         }
 
-        public static object DrawFieldElement(SerializedPropertyType type, string name, object value, System.Type sysType)
+        public static int DrawIntegerField(string name, object value, System.Type sysType, ShowInEditorRange range, ShowInEditorStyle style)
+        {
+            int v;
+            if (style != ShowInEditorStyle.Slider || range == null)
+            {
+                v = EditorGUILayout.IntField(name, (int)value);
+                if (range != null)
+                    v = (int)Mathf.Clamp(v, range.Min, range.Max);
+                return v;
+            }
+            else
+            {
+                int vv = (int)value;
+                v = (int)EditorGUILayout.Slider(name, (float)vv, range.Min, range.Max);
+                return v;
+            }
+        }
+
+        public static float DrawFloatField(string name, object value, System.Type sysType, ShowInEditorRange range, ShowInEditorStyle style)
+        {
+            float fv;
+            if (sysType != typeof(double))
+            {
+                fv = (float)value;
+            }
+            else
+            {
+                // aaaa
+                double v = (double)value;
+                fv = (float)v;
+            }
+
+            float rv;
+            if (style != ShowInEditorStyle.Slider || range == null)
+            {
+                rv = EditorGUILayout.FloatField(name, (float)value);
+                if (range != null)
+                    rv = Mathf.Clamp(rv, range.Min, range.Max);
+            }
+            else
+            {
+                rv = EditorGUILayout.Slider(name, fv, range.Min, range.Max);
+            }
+            return rv;
+        }
+
+        public static object DrawFieldElement(SerializedPropertyType type, string name, object value, System.Type sysType, ShowInEditorRange range, ShowInEditorStyle style)
         {
             switch (type)
             {
                 case SerializedPropertyType.Integer:
-                    return EditorGUILayout.IntField(name, (int)value);
+                    return DrawIntegerField(name, value, sysType, range, style);
 
                 case SerializedPropertyType.Float:
-                    {
-                        if (sysType != typeof(double))
-                        {
-                            return EditorGUILayout.FloatField(name, (float)value);
-
-                        }
-                        else
-                        {
-                            // aaaa
-                            double v = (double)value;
-                            float fv = (float)v;
-                            float rv = EditorGUILayout.FloatField(name, fv);
-                            return (double)rv;
-                        }
-                    }
+                    return DrawFloatField(name, value, sysType, range, style);
 
                 case SerializedPropertyType.Boolean:
                     return EditorGUILayout.Toggle(name, (bool)value);
@@ -605,29 +673,15 @@ namespace AU
             return null;
         }
 
-        public static object DrawFieldElementCompressed(SerializedPropertyType type, object value, System.Type sysType)
+        public static object DrawFieldElementCompact(SerializedPropertyType type, object value, System.Type sysType, ShowInEditorRange range, ShowInEditorStyle style)
         {
             switch (type)
             {
                 case SerializedPropertyType.Integer:
-                    return EditorGUILayout.IntField((int)value);
+                    return DrawIntegerField("", value, sysType, range, style);
 
                 case SerializedPropertyType.Float:
-                    {
-                        if (sysType != typeof(double))
-                        {
-                            return EditorGUILayout.FloatField((float)value);
-
-                        }
-                        else
-                        {
-                            // aaaa
-                            double v = (double)value;
-                            float fv = (float)v;
-                            float rv = EditorGUILayout.FloatField(fv);
-                            return (double)rv;
-                        }
-                    }
+                    return DrawFloatField("", value, sysType, range, style);
 
                 case SerializedPropertyType.Boolean:
                     // for some reason, editor gui layout doesn't work here
@@ -666,7 +720,7 @@ namespace AU
                         for (int i = 0; i < arr.Count; ++i)
                         {
                             System.Object v = arr[i];
-                            if(v != null)
+                            if (v != null)
                                 EditorGUILayout.LabelField(string.Format("[{0}]", i), arr[i].ToString());
                             else
                                 EditorGUILayout.LabelField(string.Format("[{0}]", i), "(null)");
@@ -678,7 +732,7 @@ namespace AU
                             field.Length = EditorGUILayout.IntField("Length", field.Length);
 
                         System.Type type = field.GetFieldType();
-                        if (field.CompressArrayLayout && type.IsPrimitive)
+                        if (field.CompactArrayLayout && type.IsPrimitive)
                         {
                             EditorGUILayout.BeginHorizontal();
 
@@ -689,7 +743,7 @@ namespace AU
                             }
                             for (int i = 0; i < arr.Count; ++i)
                             {
-                                arr[i] = DrawFieldElementCompressed(field.Type, arr[i], type);
+                                arr[i] = DrawFieldElementCompact(field.Type, arr[i], type, field.ValueRange, field.Style);
                             }
 
                             EditorGUILayout.EndHorizontal();
@@ -698,7 +752,7 @@ namespace AU
                         {
                             for (int i = 0; i < arr.Count; ++i)
                             {
-                                arr[i] = DrawFieldElement(field.Type, string.Format("[{0}]", i), arr[i], type);
+                                arr[i] = DrawFieldElement(field.Type, string.Format("[{0}]", i), arr[i], type, field.ValueRange, field.Style);
                             }
                         }
                     }
@@ -708,7 +762,7 @@ namespace AU
 
         public static void DrawMethodField(MethodField field)
         {
-            if (!field.IsButton)
+            if (field.Style != ShowInEditorStyle.Button)
             {
                 object v = field.GetValue();
 
@@ -717,7 +771,6 @@ namespace AU
                     if (v.GetType().IsArray)
                     {
                         IList arr = (IList)v;
-
                         EditorGUILayout.LabelField(field.GetName() + System.String.Format(": ({0} Elements)", arr.Count));
 
                         EditorGUI.indentLevel = 1 + field.IndentLevel;
@@ -760,7 +813,7 @@ namespace AU
                 EditorGUILayout.EndHorizontal();
                 return;
             }
-            field.SetValue(DrawFieldElement(field.Type, field.GetName(), field.GetValue(), field.GetFieldType()));
+            field.SetValue(DrawFieldElement(field.Type, field.GetName(), field.GetValue(), field.GetFieldType(), field.ValueRange, field.Style));
 
             EditorGUILayout.EndHorizontal();
         }
@@ -812,6 +865,10 @@ namespace AU
             if (field.editor_showContent)
             {
                 EditorGUI.indentLevel = 1 + field.IndentLevel;
+
+                if (field.CanModifyArrayLength)
+                    field.Length = EditorGUILayout.IntField("Length", field.Length);
+
                 if (v != null)
                 {
                     for (int i = 0; i < arr.Count; ++i)
@@ -868,7 +925,7 @@ namespace AU
             {
                 DrawArrayField((ArrayFieldField)field);
             }
-            else if(field is ButtonGroupField)
+            else if (field is ButtonGroupField)
             {
                 DrawButtonGroup((ButtonGroupField)field);
             }
@@ -945,7 +1002,7 @@ namespace AU
                             realType = field.FieldType.GetElementType();
 
                         bool isObjectRef = !FieldField.IsReadOnly(attribute, field);
-                        
+
                         isObjectRef &= (realType.IsClass ||
                                         (realType.IsValueType && !realType.IsEnum && !realType.IsPrimitive));
 
@@ -956,17 +1013,18 @@ namespace AU
                             isObjectRef &= (showInEditor != null);
                         }
 
+                        MemberField mf;
                         if (isObjectRef)
                         {
                             MemberField[] memberFields = GetFieldsFromType(realType, null, level + 1);
 
                             if (!field.FieldType.IsArray)
                             {
-                                fields.Add(new ObjectReferenceField(obj, attribute, SerializedPropertyType.ObjectReference, field, memberFields) );
+                                mf = (new ObjectReferenceField(obj, attribute, SerializedPropertyType.ObjectReference, field, memberFields));
                             }
                             else
                             {
-                                fields.Add(new ArrayObjectReferenceField(obj, attribute, SerializedPropertyType.ObjectReference, field, memberFields));
+                                mf = (new ArrayObjectReferenceField(obj, attribute, SerializedPropertyType.ObjectReference, field, memberFields));
                             }
                         }
                         else
@@ -977,12 +1035,14 @@ namespace AU
                             if (!isKnownType)
                                 attribute.Flags = ShowInEditorFlags.ReadOnly;
 
-                            MemberField mf;
                             if (!field.FieldType.IsArray)
                                 mf = new FieldField(obj, attribute, serializedType, field);
                             else
                                 mf = new ArrayFieldField(obj, attribute, serializedType, field);
+                        }
 
+                        if (mf != null)
+                        {
                             if (mf.IndentLevel == 0)
                                 mf.IndentLevel = level;
 
@@ -999,19 +1059,19 @@ namespace AU
                             {
                                 fields.Add(new MethodField(obj, attribute, SerializedPropertyType.Generic, method));
                             }
-                            else if (attribute.IsButton)
+                            else if (attribute.Style == ShowInEditorStyle.Button)
                             {
-                                if (attribute.ButtonGroup == -1)
+                                if (attribute.Group == -1)
                                 {
                                     fields.Add(new MethodField(obj, attribute, SerializedPropertyType.Generic, method));
                                 }
                                 else
                                 {
                                     List<MethodField> group;
-                                    if (!buttonFields.TryGetValue(attribute.ButtonGroup, out group))
+                                    if (!buttonFields.TryGetValue(attribute.Group, out group))
                                     {
                                         group = new List<MethodField>();
-                                        buttonFields.Add(attribute.ButtonGroup, group);
+                                        buttonFields.Add(attribute.Group, group);
                                     }
                                     group.Add(new MethodField(obj, attribute, SerializedPropertyType.Generic, method));
                                 }

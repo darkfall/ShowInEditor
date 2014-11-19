@@ -59,29 +59,35 @@ public class ShowInEditorTest : MonoBehaviour {
         return base.ToString();
     }
 
-    [ShowInEditor(Comment = "this is method call button", IsButton = true)]
+    [ShowInEditor(Comment = "this is method call button", Style = ShowInEditorStyle.Button)]
     public void TestButton()
     {
         Debug.Log("Hello World");
     }
 
-    [ShowInEditor(Comment = "this is a button group", IsButton = true, ButtonGroup = 1)]
+    [ShowInEditor(Comment = "this is a button group", Style = ShowInEditorStyle.Button, Group = 1)]
     public void TestButton1()
     {
         Debug.Log("Hello World 1");
     }
 
-    [ShowInEditor(IsButton = true, ButtonGroup = 1)]
+    [ShowInEditor(Style = ShowInEditorStyle.Button, Group = 1)]
     public void TestButton2()
     {
         Debug.Log("Hello World 2");
     }
 
-    [ShowInEditor(IsButton = true, ButtonGroup = 1)]
+    [ShowInEditor(Style = ShowInEditorStyle.Button, Group = 1)]
     public void TestButton3()
     {
         Debug.Log("Hello World 3");
     }
+
+    [ShowInEditor(RangeMin = 0, RangeMax = 100)]
+    public int intWithRange;
+
+    [ShowInEditor(RangeMin = 0, RangeMax = 50, Style = ShowInEditorStyle.Slider)]
+    public int intSlider;
 
     public void Start()
     {
