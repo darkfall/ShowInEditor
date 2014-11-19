@@ -594,7 +594,7 @@ namespace AU
             float rv;
             if (style != ShowInEditorStyle.Slider || range == null)
             {
-                rv = EditorGUILayout.FloatField(name, (float)value);
+                rv = EditorGUILayout.FloatField(name, fv);
                 if (range != null)
                     rv = Mathf.Clamp(rv, range.Min, range.Max);
             }
