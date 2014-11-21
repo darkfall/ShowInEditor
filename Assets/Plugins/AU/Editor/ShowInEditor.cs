@@ -6,11 +6,16 @@
 //
 
 using UnityEngine;
-using UnityEditor;
 using System.Collections;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Linq;
+
+#if UNITY_EDITOR
+
+using UnityEditor;
+
+#endif
 
 namespace AU
 {
@@ -163,6 +168,8 @@ namespace AU
 
     }
 
+#if UNITY_EDITOR
+
     public static class EditorHelper
     {
         public abstract class MemberField
@@ -201,7 +208,7 @@ namespace AU
             {
                 get
                 {
-                    if (_attribute.Range == null && _attribute.RangeMin != _attribute.RangeMax)
+                    if(_attribute.Range == null && _attribute.RangeMin != _attribute.RangeMax)
                         _attribute.Range = new ShowInEditorRange(_attribute.RangeMin, _attribute.RangeMax);
                     return _attribute.Range;
                 }
@@ -614,7 +621,7 @@ namespace AU
 
                 case SerializedPropertyType.Float:
                     return DrawFloatField(name, value, sysType, range, style);
-
+                        
                 case SerializedPropertyType.Boolean:
                     return EditorGUILayout.Toggle(name, (bool)value);
 
@@ -682,7 +689,7 @@ namespace AU
 
                 case SerializedPropertyType.Float:
                     return DrawFloatField("", value, sysType, range, style);
-
+                        
                 case SerializedPropertyType.Boolean:
                     // for some reason, editor gui layout doesn't work here
                     return GUILayout.Toggle((bool)value, new GUIContent(""), new GUILayoutOption[] { GUILayout.Width(24) });
@@ -720,7 +727,7 @@ namespace AU
                         for (int i = 0; i < arr.Count; ++i)
                         {
                             System.Object v = arr[i];
-                            if (v != null)
+                            if(v != null)
                                 EditorGUILayout.LabelField(string.Format("[{0}]", i), arr[i].ToString());
                             else
                                 EditorGUILayout.LabelField(string.Format("[{0}]", i), "(null)");
@@ -875,7 +882,7 @@ namespace AU
                     {
                         field.BindRefernecedObject(arr[i]);
                         DrawObjectReference(arr[i], field.Members, defaultColor);
-                    }
+                     }
                 }
                 else
                 {
@@ -925,7 +932,7 @@ namespace AU
             {
                 DrawArrayField((ArrayFieldField)field);
             }
-            else if (field is ButtonGroupField)
+            else if(field is ButtonGroupField)
             {
                 DrawButtonGroup((ButtonGroupField)field);
             }
@@ -1002,7 +1009,7 @@ namespace AU
                             realType = field.FieldType.GetElementType();
 
                         bool isObjectRef = !FieldField.IsReadOnly(attribute, field);
-
+                        
                         isObjectRef &= (realType.IsClass ||
                                         (realType.IsValueType && !realType.IsEnum && !realType.IsPrimitive));
 
@@ -1141,5 +1148,7 @@ namespace AU
         }
 
     }
-
+    
+#endif
 }
+
