@@ -94,7 +94,6 @@ namespace AU
         public bool CanModifyArrayLength = false;
 
         /**
-         *
          * Compress array layout to a horizontal group
          * Only support primitive types (bool, int, float)
          * 
@@ -108,8 +107,16 @@ namespace AU
          *      [1] ...
          *      [2] ...
          * 
+         * Also disables IsArrayBaseType and CanModifyArrayLength
          */
         public bool CompactArrayLayout = false;
+
+        /**
+         * If its an array 
+         * Tells the inspector to draw a button to add the subclassess of the type instead of the type itself
+         * Useful for abstract types
+         */
+        public bool IsArrayBaseType = false;
 
         /**
          * When decorating a method, optionally making a button in the inspector
@@ -176,13 +183,16 @@ namespace AU
         {
             protected System.Object _obj;
             protected ShowInEditor _attribute;
-            protected SerializedPropertyType _type;
+            protected System.Type _sysType;
+            protected SerializedPropertyType _serializedType;
 
             public string NamePrefix = "";
 
+            public System.Object ReferenceObject { get { return _obj;  } }
+
             public ShowInEditor Attribute { get { return _attribute; } }
 
-            public SerializedPropertyType Type { get { return _type; } }
+            public SerializedPropertyType Type { get { return _serializedType; } }
 
             public ShowInEditorFlags Flags { get { return _attribute.Flags; } }
 
@@ -193,6 +203,8 @@ namespace AU
             public bool CanModifyArrayLength { get { return _attribute.CanModifyArrayLength; } }
 
             public bool CompactArrayLayout { get { return _attribute.CompactArrayLayout; } }
+
+            public bool IsArrayBaseType { get { return _attribute.IsArrayBaseType; } }
 
             public Color Color { get { return _attribute.UnityColor; } }
 
@@ -230,8 +242,8 @@ namespace AU
             public MemberField(System.Object obj, ShowInEditor attr, SerializedPropertyType type)
             {
                 _obj = obj;
-                _type = type;
                 _attribute = attr;
+                _serializedType = type;
             }
 
             public abstract System.Object GetValue();
@@ -403,7 +415,6 @@ namespace AU
         {
             public bool editor_showContent = true;
 
-
             public int Length
             {
                 get
@@ -440,6 +451,79 @@ namespace AU
             public new static bool GetSerializedType(FieldInfo info, out SerializedPropertyType propertyType)
             {
                 return GetSerializedTypeFromType(info.FieldType.GetElementType(), out propertyType);
+            }
+
+            public void Add(System.Object obj)
+            {
+                IList arr = (IList)this.GetValue();
+                if (arr == null)
+                {
+                    arr = (IList)System.Activator.CreateInstance(_info.FieldType, 0);
+                }
+                if(arr.IsReadOnly || arr.IsFixedSize)
+                {
+                    IList newArr = (IList)System.Activator.CreateInstance(_info.FieldType, arr.Count + 1);
+                    for (int i = 0; i < arr.Count; ++i)
+                        newArr[i] = arr[i];
+                    newArr[arr.Count] = obj;
+                    this.SetValue(newArr);
+                }
+                else
+                {
+                    arr.Add(obj);
+                }
+            }
+
+            public void Remove(System.Object obj)
+            {
+                IList arr = (IList)this.GetValue();
+                if (arr == null)
+                    return;
+
+                if (arr.IsReadOnly || arr.IsFixedSize)
+                {
+                    IList newArr = (IList)System.Activator.CreateInstance(_info.FieldType, arr.Count - 1);
+                    int index = 0;
+                    for (int i = 0; i < arr.Count; ++i)
+                    {
+                        if (arr[i] != obj)
+                        {
+                            newArr[index] = arr[i];
+                            index++;
+                        }
+                    }
+                    this.SetValue(newArr);
+                }
+                else
+                {
+                    arr.Remove(obj);
+                }
+            }
+
+            public void RemoveAt(int atIndex)
+            {
+                IList arr = (IList)this.GetValue();
+                if (arr == null)
+                    return;
+
+                if (arr.IsReadOnly || arr.IsFixedSize)
+                {
+                    IList newArr = (IList)System.Activator.CreateInstance(_info.FieldType, arr.Count - 1);
+                    int index = 0;
+                    for (int i = 0; i < arr.Count; ++i)
+                    {
+                        if (i != atIndex)
+                        {
+                            newArr[index] = arr[i];
+                            index++;
+                        }
+                    }
+                    this.SetValue(newArr);
+                }
+                else
+                {
+                    arr.RemoveAt(atIndex);
+                }
             }
         }
 
@@ -546,9 +630,12 @@ namespace AU
         {
             protected MemberField[] _members;
 
+            public bool[] editor_ShowContents;
+
             public MemberField[] Members
             {
                 get { return _members; }
+                set { _members = value;  }
             }
 
             public ArrayObjectReferenceField(System.Object instance, ShowInEditor attribute, SerializedPropertyType type, FieldInfo info, MemberField[] members)
@@ -735,9 +822,6 @@ namespace AU
                     }
                     else
                     {
-                        if (field.CanModifyArrayLength)
-                            field.Length = EditorGUILayout.IntField("Length", field.Length);
-
                         System.Type type = field.GetFieldType();
                         if (field.CompactArrayLayout && type.IsPrimitive)
                         {
@@ -757,11 +841,38 @@ namespace AU
                         }
                         else
                         {
+                            int indexToRemove = -1;
                             for (int i = 0; i < arr.Count; ++i)
                             {
+                                EditorGUILayout.BeginHorizontal();
+                                if (field.CanModifyArrayLength)
+                                {
+                                    if (GUILayout.Button("-", new GUILayoutOption[] { GUILayout.Width(24) })) {
+                                        indexToRemove = i;
+                                    }
+                                }
                                 arr[i] = DrawFieldElement(field.Type, string.Format("[{0}]", i), arr[i], type, field.ValueRange, field.Style);
+
+                                EditorGUILayout.EndHorizontal();
                             }
+
+                            if (indexToRemove != -1)
+                            {
+                                field.RemoveAt(indexToRemove);
+                            }
+
+                            EditorGUILayout.BeginHorizontal();
+
+                            GUILayout.FlexibleSpace();
+
+                            if(GUILayout.Button("Add", new GUILayoutOption[] { GUILayout.Width(80) })) 
+                            {
+                                field.Add(System.Activator.CreateInstance(type));
+                            }
+
+                            EditorGUILayout.EndHorizontal();
                         }
+
                     }
                 }
             }
@@ -825,19 +936,25 @@ namespace AU
             EditorGUILayout.EndHorizontal();
         }
 
-        public static void DrawObjectReference(System.Object obj, MemberField[] fields, Color defaultColor)
+        public static string GetObjectName(ref System.Object obj)
+        {
+            if (obj == null)
+                return "(null)";
+
+            if (obj is UnityEngine.Component)
+                return (obj as UnityEngine.Component).gameObject.name + ".";
+            else if (obj is UnityEngine.GameObject)
+                return (obj as UnityEngine.GameObject).name + ".";
+            return obj.GetType().Name;
+        }
+
+        public static void DrawObjectReference(ref System.Object obj, MemberField[] fields, Color defaultColor)
         {
             if (obj != null)
             {
-                string namePrefix = "";
-                if (obj is UnityEngine.Component)
-                    namePrefix = (obj as UnityEngine.Component).gameObject.name + ".";
-                else if (obj is UnityEngine.GameObject)
-                    namePrefix = (obj as UnityEngine.GameObject).name + ".";
-
                 foreach (MemberField memberField in fields)
                 {
-                    memberField.NamePrefix = namePrefix;
+                    //memberField.NamePrefix = namePrefix;
                     DrawField(memberField, defaultColor);
                 }
             }
@@ -857,36 +974,125 @@ namespace AU
             if (field.editor_showContent)
             {
                 field.BindRefernecedObject(obj);
-                DrawObjectReference(obj, field.Members, defaultColor);
+                DrawObjectReference(ref obj, field.Members, defaultColor);
             }
         }
 
         public static void DrawArrayObjectReferenceField(ArrayObjectReferenceField field, Color defaultColor)
         {
             object v = field.GetValue();
-            IList arr = (IList)v;
+            System.Array arr = (System.Array)v;
+
+            EditorGUILayout.BeginHorizontal();
 
             field.editor_showContent = EditorGUILayout.Foldout(field.editor_showContent,
-                field.GetName() + System.String.Format(": ({0} Elements)", arr != null ? arr.Count : 0));
+                field.GetName() + System.String.Format(": ({0} Elements)", arr != null ? arr.Length : 0));
 
+            GUILayout.FlexibleSpace();
+
+            if (!field.IsArrayBaseType && field.CanModifyArrayLength)
+            {
+                if (GUILayout.Button("Add", new GUILayoutOption[] { GUILayout.Width(80) }))
+                {
+                    System.Object instance = System.Activator.CreateInstance(field.GetFieldType());
+                    field.Add(instance);
+                }
+            }
+            else
+            {
+                if (GUILayout.Button("Add...", new GUILayoutOption[] { GUILayout.Width(80) }))
+                {
+                    System.Type type = field.GetFieldType();
+                    var typeNames = type.Assembly.GetTypes()
+                                        .Where(t => t.IsSubclassOf(type) && !t.IsAbstract)
+                                        .Select(t => t.Name);
+
+                    UnityEditor.GenericMenu menu = new GenericMenu();
+                    foreach (var name in typeNames)
+                    {
+                        menu.AddItem(new GUIContent(name), false, ((object o) =>
+                        {
+                            System.Type t = type.Assembly.GetType(type.Namespace + "." + name);
+                            System.Object inst = null;
+                            if (t.IsSubclassOf(typeof(UnityEngine.MonoBehaviour)))
+                            {
+                                if (field.ReferenceObject is GameObject)
+                                    inst = ((GameObject)field.ReferenceObject).AddComponent(t);
+                                else if (field.ReferenceObject is MonoBehaviour)
+                                    inst = ((MonoBehaviour)field.ReferenceObject).gameObject.AddComponent(t);
+                                else
+                                    Debug.LogError("[ShowInEditor] Cannot add comopnent in object references");
+
+                                if (inst != null)
+                                {
+                                    ((MonoBehaviour)inst).hideFlags = HideFlags.HideInInspector;
+                                }
+                            }
+                            else
+                            {
+                                inst = System.Activator.CreateInstance(t); ;
+                            }
+
+                            field.Members = GetFieldsFromType(t, null, field.IndentLevel + 2);
+                            field.Add(inst);
+                        }), name);
+                    }
+
+                    menu.ShowAsContext();
+                }
+
+            }
+
+            EditorGUILayout.EndHorizontal();
             if (field.editor_showContent)
             {
                 EditorGUI.indentLevel = 1 + field.IndentLevel;
 
-                if (field.CanModifyArrayLength)
-                    field.Length = EditorGUILayout.IntField("Length", field.Length);
-
                 if (v != null)
                 {
-                    for (int i = 0; i < arr.Count; ++i)
+                    if (field.editor_ShowContents == null || field.editor_ShowContents.Length != arr.Length)
                     {
-                        field.BindRefernecedObject(arr[i]);
-                        DrawObjectReference(arr[i], field.Members, defaultColor);
-                     }
-                }
-                else
-                {
-                    EditorGUILayout.LabelField("The array is empty");
+                        field.editor_ShowContents = Enumerable.Repeat(true, arr.Length).ToArray();
+                    }
+
+                    int indexToRemove = -1;
+                    for (int i = 0; i < arr.Length; ++i)
+                    {
+                        GUILayout.BeginHorizontal();
+
+                        System.Object obj = arr.GetValue(i);
+
+                        bool showObj = field.editor_ShowContents[i];
+                        showObj = EditorGUILayout.Foldout(showObj, GetObjectName(ref obj));
+                        field.editor_ShowContents[i] = showObj;
+
+                        if (field.CanModifyArrayLength)
+                        {
+                            if (GUILayout.Button("-", new GUILayoutOption[] { GUILayout.Width(24) }))
+                            {
+                                indexToRemove = i;
+                            }
+                        }
+                        GUILayout.EndHorizontal();
+
+                        if (showObj)
+                        {
+                            field.BindRefernecedObject(obj);
+                            DrawObjectReference(ref obj, field.Members, defaultColor);
+                        }
+
+                        if (field.GetFieldType().IsValueType)
+                        {
+                            arr.SetValue(obj, i);
+                        }
+
+                        EditorGUI.indentLevel = 1 + field.IndentLevel;
+                    }
+
+                    if (indexToRemove != -1)
+                    {
+                        field.RemoveAt(indexToRemove);
+                    }
                 }
 
             }
@@ -977,6 +1183,14 @@ namespace AU
             {
                 ShowInEditor attribute = member.GetCustomAttributes(false).OfType<ShowInEditor>().FirstOrDefault();
 
+                if(level > 0 && 
+                    attribute == null && 
+                    (member is FieldInfo) &&
+                    ((FieldInfo)member).IsPublic)
+                {
+                    attribute = new ShowInEditor();
+                }
+
                 if (attribute != null)
                 {
                     if (member is PropertyInfo)
@@ -1023,7 +1237,7 @@ namespace AU
                         MemberField mf;
                         if (isObjectRef)
                         {
-                            MemberField[] memberFields = GetFieldsFromType(realType, null, level + 1);
+                            MemberField[] memberFields = GetFieldsFromType(realType, null, level + 2);
 
                             if (!field.FieldType.IsArray)
                             {
@@ -1047,6 +1261,9 @@ namespace AU
                             else
                                 mf = new ArrayFieldField(obj, attribute, serializedType, field);
                         }
+
+                        if (field.IsPublic)
+                            attribute.CanModifyArrayLength = true;
 
                         if (mf != null)
                         {
